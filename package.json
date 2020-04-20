@@ -1,0 +1,19 @@
+{
+  "name": "nwserversgetter",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iRebbok/nwServersGetter.git"
+  },
+  "author": "iRebbok#2429",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/iRebbok/nwServersGetter/issues"
+  },
+  "homepage": "https://github.com/iRebbok/nwServersGetter#readme",
+  "dependencies": {
+    "jsdom": "^16.2.2",
+    "puppeteer": "^3.0.0"
+  }
+}
