@@ -1,69 +1,72 @@
-const puppeteer = require('puppeteer');
+const cloudscraper = require('cloudscraper');
 const jsdom = require('jsdom');
 
-const NW_SERVERS = 'https://servers.scpslgame.com/';
+const NW_SERVERS = 'https://kigen.co/scpsl/browser.php?table=y';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36';
 
-const ROW_SELECTOR = '.server-row'; // CSS Selector that defines the loading of the page
-const CONTAINER_ID = 'servers-list'; // ID of the container that is stored inside the row servers
-const ROW_ID_REGEX = 'server-row-\\d+'; // Regular expression that defines the ID of the server element (server-row-{serverId})
+const TAG_REGEX = /<[^>]*?>/g; // Regex to remove all tags
+const TAG_STYLE_REGEX = /&lt;\/?(?:\w+=?\w+)&gt;/g; // Regex to remove tags of type '&lt;size=1&gt;SM119.1.9.5 (EXILED)&lt;/size&gt;'
+
+/**
+ * @typedef {Object} RowServer
+ * 
+ * @property {string} [ip]
+ * @property {string} [port]
+ * @property {string} [info]
+ * @property {string} [pastebin]
+ * @property {string} [players]
+ * @property {string} [version]
+ * @property {string} [distance]
+ */
 
 /**
  * Retrieves all available servers without using the API & API key.
- * @returns {Array<string>} All servers that could be obtained
+ * @returns {Promise<RowServer[]>} All servers that could be obtained
  */
-async function main() {
-    const browser = await puppeteer.launch();
-    const [page] = await browser.pages();
-    page.setUserAgent(USER_AGENT);
+function main() {
+    return new Promise(async (resolve) => {
+        // I don't know why, but it's calmer, like kigen.co does not have cloudflare
+        const content = await cloudscraper.get(NW_SERVERS, {headers:{'User-Agent': USER_AGENT}, encoding: 'utf8'});
 
-    await page.goto(NW_SERVERS, {waitUntil: 'networkidle0'});
-    await page.waitForSelector(ROW_SELECTOR);
-    const containerId = CONTAINER_ID;
-    const rowRegex = ROW_ID_REGEX;
-    await page.waitForFunction((containerId, rowRegex) => {
-        rowRegex = new RegExp(rowRegex, 's');
-        const container = document.getElementById(containerId);
-        if (container && container.firstChild) {
-            for (const row of container.children) {
-                if (rowRegex.test(row.id)) {
-                    return true;
+        const result = [];
+        const doc = new jsdom.JSDOM(content, {contentType: 'text/html'})
+
+        for (var z = 0;; z++) {
+            const rowDetails = doc.window.document.getElementById(z);      
+            if (rowDetails) {
+                const rowData = {
+                    ip: '',
+                    port: '',
+                    info: '',
+                    pastebin: '',
+                    players: '',
+                    version: '',
+                    distance: ''
                 }
+
+                const ipPort = rowDetails.children[0].innerHTML.split(':');
+                rowData.ip = ipPort[0];
+                rowData.port = ipPort[1];
+    
+                const info = rowDetails.children[1].innerHTML.replace(TAG_REGEX, '').replace(TAG_STYLE_REGEX, '');
+                rowData.info = info;
+                    
+                rowData.pastebin = rowDetails.children[2].getElementsByTagName('a')[0].innerHTML;
+                rowData.players = rowDetails.children[3].innerHTML;
+                rowData.version = rowDetails.children[4].innerHTML;
+                rowData.distance = rowDetails.children[6].innerHTML;
+    
+                // because there is no serverId, the server will have to be identified by ip & port
+                if (rowData.ip && rowData.port) {
+                    result[result.length] = rowData;
+                }
+            } else {
+                break;
             }
         }
-        return false;
-    }, {}, containerId, rowRegex);
-    await page.waitFor(1500); // to make the site script complete all its work
-
-    const content = await page.content();
-    await browser.close();
-
-    const result = [];
-
-    const doc = new jsdom.JSDOM(content);
-    const container = doc.window.document.getElementById(CONTAINER_ID);
-    if (container && container.firstChild) {
-        const rowIdRegex = new RegExp(ROW_ID_REGEX, 's');
-        for (const row of container.children) {
-            var processed = '';
-
-            if (rowIdRegex.test(row.id)) {
-                const codeDocs = row.getElementsByTagName('code');
-                for (const codeDoc of codeDocs) {
-                    for (const chunkDoc of codeDoc.children) {
-                        processed += chunkDoc.innerHTML;
-                    }
-                }
-            }
-
-            // for some reason, the first object is always empty
-            if (processed != '') {
-                result[result.length] = processed;
-            }
-        }
-    }
-
-    return result;
+    
+        resolve(result);        
+    });
 };
 
 module.exports = main;

@@ -5,19 +5,31 @@
 
 
 const func = require('./func');
+/*
 const tagRegex = /<[^>]*?>/g;
 const spacesRegex = /\s+/g;
+*/
 
-(async () => {
-    const servers = await func();
+func().then(servers => {
 
-    const randomServer = JSON.parse(servers[Math.floor(Math.random() * servers.length)]); // data is not in object format, it is a simple string
-    console.log(`OriginalInfo = ${randomServer.info}`);
-    console.log(`ParsedInfo = ${(Buffer.from(randomServer.info, 'base64').toString('utf8')).replace(tagRegex, '').replace(spacesRegex, ' ')}`);
+    const randomServer = servers[Math.floor(Math.random() * servers.length)];
+    console.log(`Info = ${randomServer.info}`);
     console.log(`Players = ${randomServer.players}`);
-    console.log(`Serverid = ${randomServer.serverId}`);
     console.log(`IP = ${randomServer.ip}`);
     console.log(`Port = ${randomServer.port}`);
     console.log(`Version = ${randomServer.version}`);
-    console.log(`isoCode = ${randomServer.isoCode}`);
+
+});
+
+/*
+(async () => {
+    const servers = await func();
+
+    const randomServer = servers[Math.floor(Math.random() * servers.length)];
+    console.log(`Info = ${randomServer.info}`);
+    console.log(`Players = ${randomServer.players}`);
+    console.log(`IP = ${randomServer.ip}`);
+    console.log(`Port = ${randomServer.port}`);
+    console.log(`Version = ${randomServer.version}`);
 })()
+*/
